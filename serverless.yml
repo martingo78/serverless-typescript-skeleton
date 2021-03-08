@@ -1,0 +1,47 @@
+service:
+  name: service-name
+
+custom:
+  stages:
+    - dev
+    - staging
+    - prod
+  webpack:
+    webpackConfig: ./webpack.config.js
+    includeModules: true
+  common: ${file(../common.yml)}
+  # secrets: ${file(./secrets.yml):${self:provider.stage}}
+  output:
+    file: .build/stack-${self:provider.stage}.yml
+
+plugins:
+  - serverless-webpack
+  - serverless-deployment-bucket
+  - serverless-iam-roles-per-function
+  - serverless-stage-manager
+  - serverless-pseudo-parameters
+  - serverless-stack-output
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: ${opt:region, "us-west-2"}
+  stage: ${opt:stage, "dev"}
+  memorySize: 256
+  logRetentionInDays: 60
+  deploymentBucket:
+    name: ${self:custom.common.servicePrefix}.deploys.trac.co
+    blockPublicAccess: true
+    serverSideEncryption: AES256
+  tags: ${self:custom.common.tags}
+  versionFunctions: false
+  stackTags: ${self:custom.common.tags}
+  apiGateway:
+    minimumCompressionSize: 1024 # Enable gzip compression for responses > 1 KB
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    STAGE: ${self:provider.stage}
+
+resources: ${file(./resources/index.yml)}
+
+functions: ${file(./functions/index.yml)}
